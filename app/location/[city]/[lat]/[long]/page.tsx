@@ -3,6 +3,14 @@ import {getClient} from "@/apollo-client"
 import fetchWeatherQuery from '@/graphql/queries/fetchWeatherQueries';
 import CalloutCard from '@/components/CalloutCard';
 import StartCard from '@/components/StartCard';
+import InformationPanel from '@/components/InformationPanel';
+import TempChart from '@/components/TempChart';
+import RainChart from '@/components/RainChart';
+import HumidityChart from '@/components/HumidityChart';
+import cleanData from '@/lib/cleanData'
+import getBasePath from '@/lib/getBasePath'
+
+export const revalidate = 1440;
 
 type Props= {
     params:{
@@ -25,12 +33,33 @@ export default async function WeatherPage({params:{city, lat, long}}: Props) {
     })
 
     const results: Root = data.myQuery;
-    // console.log(results);
+
+    //data to send to gpt 
+    const dataToSend= cleanData(results, city);
+     const res = await fetch(`${getBasePath()}/api/getWeatherSummary`,{
+        method: 'POST',
+        headers:{
+            'Content-Type':"application/json"
+        },
+        body: JSON.stringify({
+            weatherData: dataToSend
+        })
+     })
+
+     const GPTdata= await res.json();
+
+     const {content}= GPTdata
+    //console.log(results.hourly.time);
   return (
-    <div>
+    <div className='flex flex-col min-h-screen md:flex-row'>
         {/* info panel */}
-        
-        <div>
+        <InformationPanel 
+        city={city} 
+        results={results}
+        lat={lat}
+        long={long}
+        />
+        <div className='flex-1 p-5 lg:p-10'>
             <div className='p-5'>
                 <div className='pb-5'>
                     <h2 className='text-xl font-bold'>Today's Overview</h2>
@@ -42,7 +71,7 @@ export default async function WeatherPage({params:{city, lat, long}}: Props) {
                 <div className='m-2 mb-10'>
                     {/* callout card */}
                     <CalloutCard 
-                    message='This is where gpt summary goes'
+                    message={content}
                     />
                 </div>
 
@@ -93,8 +122,11 @@ export default async function WeatherPage({params:{city, lat, long}}: Props) {
 
             <div className="space-y-3">
                 {/* Temp Charts */}
+                <TempChart results={results}/>
                  {/* Rain Charts */}
+                 <RainChart results={results}/>
                   {/* Humidity Charts */}
+                  <HumidityChart results={results}/>
 
             </div>
         </div>
